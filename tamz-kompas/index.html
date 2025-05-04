@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kompas</title>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" rel="stylesheet">
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .compass-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 20px auto;
+        }
+
+        .compass-base {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .compass-arrow {
+            width: 60px; /* Smaller width */
+            height: 80px; /* Smaller height */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -40px; /* Half of height */
+            margin-left: -30px; /* Half of width */
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .data-display {
+            margin: 10px 0;
+            font-size: 1.2em;
+        }
+
+        .direction-display {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #3880ff;
+        }
+    </style>
+</head>
+<body>
+<ion-app>
+    <ion-header>
+        <ion-toolbar color="primary">
+            <ion-title>Kompas</ion-title>
+        </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+        <div class="container">
+            <div class="compass-container">
+                <!-- Compass base -->
+                <img src="komponenty/compass.png" class="compass-base" alt="Compass">
+                <!-- Rotating arrow - now smaller but perfectly centered -->
+                <img src="komponenty/arrow.png" class="compass-arrow" alt="Arrow" id="compassArrow">
+            </div>
+
+            <div class="direction-display" id="directionText">--</div>
+
+            <ion-card>
+                <ion-card-header>
+                    <ion-card-title>Poloha</ion-card-title>
+                </ion-card-header>
+                <ion-card-content>
+                    <div class="data-display" id="coordinates">Souřadnice: --° --' --" N, --° --' --" E</div>
+                    <div class="data-display" id="altitude">Nadmořská výška: -- m</div>
+                    <div class="data-display" id="heading">Směr: --°</div>
+                </ion-card-content>
+            </ion-card>
+        </div>
+    </ion-content>
+</ion-app>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const compassArrow = document.getElementById('compassArrow');
+        const directionText = document.getElementById('directionText');
+        const coordinates = document.getElementById('coordinates');
+        const altitude = document.getElementById('altitude');
+        const heading = document.getElementById('heading');
+
+        let lastHeading = 0;
+        let smoothHeading = 0;
+
+        // Cardinal directions (16 points)
+        const directions = [
+            'Sever', 'Sever severovýchod', 'Severovýchod', 'Východ severovýchod',
+            'Východ', 'Východ jihovýchod', 'Jihovýchod', 'Jih jihovýchod',
+            'Jih', 'Jih jihozápad', 'Jihozápad', 'Západ jihozápad',
+            'Západ', 'Západ severozápad', 'Severozápad', 'Sever severozápad'
+        ];
+
+        // Check if Geolocation and DeviceOrientation are available
+        if ('geolocation' in navigator && 'DeviceOrientationEvent' in window) {
+            // Get coordinates
+            navigator.geolocation.watchPosition((position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const alt = position.coords.altitude;
+
+                // Convert decimal degrees to degrees, minutes, seconds
+                const latDeg = Math.abs(Math.floor(lat));
+                const latMin = Math.abs(Math.floor((lat % 1) * 60));
+                const latSec = Math.abs(((lat % 1) * 60 % 1) * 60);
+                const latDir = lat >= 0 ? 'N' : 'S';
+
+                const lonDeg = Math.abs(Math.floor(lon));
+                const lonMin = Math.abs(Math.floor((lon % 1) * 60));
+                const lonSec = Math.abs(((lon % 1) * 60 % 1) * 60);
+                const lonDir = lon >= 0 ? 'E' : 'W';
+
+                coordinates.textContent = `Souřadnice: ${latDeg}° ${latMin}' ${latSec.toFixed(1)}" ${latDir}, ${lonDeg}° ${lonMin}' ${lonSec.toFixed(1)}" ${lonDir}`;
+
+                if (alt !== null) {
+                    altitude.textContent = `Nadmořská výška: ${Math.round(alt)} m`;
+                } else {
+                    altitude.textContent = 'Nadmořská výška: Nedostupné';
+                }
+            }, (error) => {
+                console.error('Geolocation error:', error);
+                coordinates.textContent = 'Souřadnice: Nedostupné';
+                altitude.textContent = 'Nadmořská výška: Nedostupné';
+            }, {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 5000
+            });
+
+            // Handle device orientation for compass
+            window.addEventListener('deviceorientation', (event) => {
+                if (event.absolute && event.alpha !== null) {
+                    // Use alpha (compass heading) if available
+                    const newHeading = event.alpha;
+
+                    // Smooth the heading to avoid jumps when crossing 0/360
+                    let delta = newHeading - lastHeading;
+                    if (delta < -180) delta += 360;
+                    if (delta > 180) delta -= 360;
+
+                    smoothHeading = lastHeading + delta * 0.2; // Smoothing factor
+                    lastHeading = smoothHeading;
+
+                    // Keep heading between 0-360
+                    if (smoothHeading < 0) smoothHeading += 360;
+                    if (smoothHeading >= 360) smoothHeading -= 360;
+
+                    // Update display
+                    heading.textContent = `Směr: ${Math.round(smoothHeading)}°`;
+
+                    // Rotate compass arrow (invert rotation for natural compass movement)
+                    compassArrow.style.transform = `rotate(${-smoothHeading}deg)`;
+
+                    // Get cardinal direction
+                    const index = Math.round(smoothHeading / 22.5) % 16;
+                    directionText.textContent = directions[index];
+                }
+            });
+        } else {
+            coordinates.textContent = 'Geolokace není podporována';
+            altitude.textContent = 'Nadmořská výška: Nedostupné';
+            heading.textContent = 'Směr: Nedostupné';
+            directionText.textContent = 'Orientace není podporována';
+        }
+    });
+</script>
+</body>
+</html>
