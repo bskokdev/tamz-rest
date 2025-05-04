@@ -31,18 +31,17 @@
             position: absolute;
             top: 0;
             left: 0;
+            transition: transform 0.1s ease-out;
         }
 
         .compass-arrow {
-            width: 60px; /* Smaller width */
-            height: 80px; /* Smaller height */
+            width: 60px;
+            height: 80px;
             position: absolute;
             top: 50%;
             left: 50%;
-            margin-top: -40px; /* Half of height */
-            margin-left: -30px; /* Half of width */
-            transform-origin: center center;
-            transition: transform 0.1s ease-out;
+            transform: translate(-50%, -50%);
+            z-index: 10;
         }
 
         .data-display {
@@ -69,10 +68,10 @@
     <ion-content class="ion-padding">
         <div class="container">
             <div class="compass-container">
-                <!-- Compass base -->
-                <img src="komponenty/compass.png" class="compass-base" alt="Compass">
-                <!-- Rotating arrow - now smaller but perfectly centered -->
-                <img src="komponenty/arrow.png" class="compass-arrow" alt="Arrow" id="compassArrow">
+                <!-- Compass base - this will rotate instead of the arrow -->
+                <img src="komponenty/compass.png" class="compass-base" id="compassBase" alt="Compass">
+                <!-- Fixed arrow pointing north -->
+                <img src="komponenty/arrow.png" class="compass-arrow" alt="Arrow">
             </div>
 
             <div class="direction-display" id="directionText">--</div>
@@ -93,7 +92,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const compassArrow = document.getElementById('compassArrow');
+        const compassBase = document.getElementById('compassBase');
         const directionText = document.getElementById('directionText');
         const coordinates = document.getElementById('coordinates');
         const altitude = document.getElementById('altitude');
@@ -101,6 +100,25 @@
 
         let lastHeading = 0;
         let smoothHeading = 0;
+
+        // Request permission for iOS 13+ devices
+        function requestPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                        } else {
+                            alert('Potřebujeme přístup ke senzorům zařízení pro fungování kompasu.');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Non iOS 13+ devices don't need to request permission
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+        }
 
         // Cardinal directions (16 points)
         const directions = [
@@ -110,8 +128,55 @@
             'Západ', 'Západ severozápad', 'Severozápad', 'Sever severozápad'
         ];
 
+        // Handle device orientation for compass
+        function handleOrientation(event) {
+            if (event.compassHeading !== undefined) {
+                // For iOS devices that provide compassHeading
+                updateCompass(event.compassHeading);
+            } else if (event.webkitCompassHeading !== undefined) {
+                // For older iOS devices
+                updateCompass(event.webkitCompassHeading);
+            } else if (event.alpha !== null) {
+                // For Android devices
+                // Need to check if device is Android
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                if (isAndroid) {
+                    // On Android, we need to use a different calculation
+                    let heading = 360 - event.alpha;
+                    updateCompass(heading);
+                } else {
+                    // For other devices
+                    updateCompass(event.alpha);
+                }
+            }
+        }
+
+        function updateCompass(newHeading) {
+            // Smooth the heading to avoid jumps when crossing 0/360
+            let delta = newHeading - lastHeading;
+            if (delta < -180) delta += 360;
+            if (delta > 180) delta -= 360;
+
+            smoothHeading = lastHeading + delta * 0.2; // Smoothing factor
+            lastHeading = smoothHeading;
+
+            // Keep heading between 0-360
+            if (smoothHeading < 0) smoothHeading += 360;
+            if (smoothHeading >= 360) smoothHeading -= 360;
+
+            // Update display
+            heading.textContent = `Směr: ${Math.round(smoothHeading)}°`;
+
+            // Rotate compass base (NOT the arrow)
+            compassBase.style.transform = `rotate(${smoothHeading}deg)`;
+
+            // Get cardinal direction
+            const index = Math.round(smoothHeading / 22.5) % 16;
+            directionText.textContent = directions[index];
+        }
+
         // Check if Geolocation and DeviceOrientation are available
-        if ('geolocation' in navigator && 'DeviceOrientationEvent' in window) {
+        if ('geolocation' in navigator) {
             // Get coordinates
             navigator.geolocation.watchPosition((position) => {
                 const lat = position.coords.latitude;
@@ -146,35 +211,16 @@
                 timeout: 5000
             });
 
-            // Handle device orientation for compass
-            window.addEventListener('deviceorientation', (event) => {
-                if (event.absolute && event.alpha !== null) {
-                    // Use alpha (compass heading) if available
-                    const newHeading = event.alpha;
-
-                    // Smooth the heading to avoid jumps when crossing 0/360
-                    let delta = newHeading - lastHeading;
-                    if (delta < -180) delta += 360;
-                    if (delta > 180) delta -= 360;
-
-                    smoothHeading = lastHeading + delta * 0.2; // Smoothing factor
-                    lastHeading = smoothHeading;
-
-                    // Keep heading between 0-360
-                    if (smoothHeading < 0) smoothHeading += 360;
-                    if (smoothHeading >= 360) smoothHeading -= 360;
-
-                    // Update display
-                    heading.textContent = `Směr: ${Math.round(smoothHeading)}°`;
-
-                    // Rotate compass arrow (invert rotation for natural compass movement)
-                    compassArrow.style.transform = `rotate(${-smoothHeading}deg)`;
-
-                    // Get cardinal direction
-                    const index = Math.round(smoothHeading / 22.5) % 16;
-                    directionText.textContent = directions[index];
-                }
-            });
+            // Request orientation permission and add event listener
+            if ('DeviceOrientationEvent' in window) {
+                // For iOS 13+ we need to request permission
+                document.body.addEventListener('click', requestPermission, { once: true });
+                // For all other browsers
+                requestPermission();
+            } else {
+                heading.textContent = 'Směr: Nedostupné';
+                directionText.textContent = 'Orientace není podporována';
+            }
         } else {
             coordinates.textContent = 'Geolokace není podporována';
             altitude.textContent = 'Nadmořská výška: Nedostupné';
