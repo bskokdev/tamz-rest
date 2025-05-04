@@ -156,7 +156,6 @@
             let delta = newHeading - lastHeading;
             if (delta < -180) delta += 360;
             if (delta > 180) delta -= 360;
-
             smoothHeading = lastHeading + delta * 0.2; // Smoothing factor
             lastHeading = smoothHeading;
 
@@ -164,11 +163,11 @@
             if (smoothHeading < 0) smoothHeading += 360;
             if (smoothHeading >= 360) smoothHeading -= 360;
 
-            // Update display
+            // Update display heading
             heading.textContent = `Směr: ${Math.round(smoothHeading)}°`;
 
-            // Rotate compass base (NOT the arrow)
-            compassBase.style.transform = `rotate(${smoothHeading}deg)`;
+            // Rotate compass base in the OPPOSITE direction to fix the reversal
+            compassBase.style.transform = `rotate(${-smoothHeading}deg)`;
 
             // Get cardinal direction
             const index = Math.round(smoothHeading / 22.5) % 16;
