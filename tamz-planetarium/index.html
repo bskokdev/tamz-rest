@@ -41,6 +41,12 @@
         .planet-title {
             font-size: 1.4rem;
             font-weight: bold;
+            color: #b8b8b8;
+        }
+
+        .detail-desc {
+            font-size: 1.2rem;
+            color: #b8b8b8;
         }
 
         .planet-subtitle {
@@ -51,13 +57,6 @@
             width: 100%;
             max-height: 200px;
             object-fit: cover;
-        }
-
-        .planet-detail-img {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
-            display: block;
         }
 
         .planet-orbit {
@@ -173,23 +172,23 @@
         <ion-content>
             <ion-list>
                 <ion-item button onclick="navigateTo('planets')">
-                    <ion-icon name="planet-outline" slot="start"></ion-icon>
+                    <ion-icon name="planet-outline" slot="start" color="white"></ion-icon>
                     <ion-label>Planety</ion-label>
                 </ion-item>
                 <ion-item button onclick="navigateTo('favorites')">
-                    <ion-icon name="star-outline" slot="start"></ion-icon>
+                    <ion-icon name="star-outline" slot="start" color="white"></ion-icon>
                     <ion-label>Oblíbené</ion-label>
                 </ion-item>
                 <ion-item button onclick="navigateTo('map')">
-                    <ion-icon name="map-outline" slot="start"></ion-icon>
+                    <ion-icon name="map-outline" slot="start" color="white"></ion-icon>
                     <ion-label>Mapa vesmíru</ion-label>
                 </ion-item>
                 <ion-item button onclick="navigateTo('settings')">
-                    <ion-icon name="settings-outline" slot="start"></ion-icon>
+                    <ion-icon name="settings-outline" slot="start" color="white"></ion-icon>
                     <ion-label>Nastavení</ion-label>
                 </ion-item>
                 <ion-item button onclick="showAboutModal()">
-                    <ion-icon name="information-circle-outline" slot="start"></ion-icon>
+                    <ion-icon name="information-circle-outline" slot="start" color="white"></ion-icon>
                     <ion-label>O aplikaci</ion-label>
                 </ion-item>
             </ion-list>
@@ -244,7 +243,6 @@
             <!-- Detail planety -->
             <div id="planet-detail" style="display: none;">
                 <ion-card class="planet-card">
-                    <img id="detail-img" class="planet-detail-img" src="" alt="Obrázek planety">
                     <ion-card-header>
                         <ion-card-subtitle id="detail-subtitle" class="planet-subtitle"></ion-card-subtitle>
                         <ion-card-title id="detail-title" class="planet-title"></ion-card-title>
@@ -388,7 +386,8 @@
         <ion-content class="ion-padding">
             <div class="ion-text-center">
                 <h2>Planetárium</h2>
-                <p>Verze 1.0.0</p>
+                <h3>Boris Skok</h3>
+                <h3>SKO0219</h3>
                 <p>Aplikace pro zobrazení informací o planetách sluneční soustavy</p>
                 <p>Vytvořeno pomocí Ionic Frameworku</p>
             </div>
@@ -700,7 +699,6 @@
             document.getElementById('detail-title').textContent = planet.name;
             document.getElementById('detail-title').dataset.planetId = planet.id;
             document.getElementById('detail-subtitle').textContent = `${planet.englishName} | ${planet.isPlanet ? 'Planeta' : 'Jiné těleso'}`;
-            document.getElementById('detail-img').src = `https://api.le-systeme-solaire.net/assets/images/planets/${planet.id}.gif`;
 
             let description = '';
             if (planet.id === 'earth') {
